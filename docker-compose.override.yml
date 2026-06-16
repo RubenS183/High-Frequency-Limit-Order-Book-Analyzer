@@ -1,0 +1,38 @@
+# ============================================================
+# Docker Compose Override — Development hot-reload settings
+# Automatically merged with docker-compose.yml in dev mode
+# ============================================================
+
+version: "3.9"
+
+services:
+  api:
+    volumes:
+      - ./src:/app/src   # Hot-reload source changes
+    command:
+      - uvicorn
+      - lob_analyzer.api.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app/src
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+
+  ingestion:
+    volumes:
+      - ./src:/app/src
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+
+  dashboard:
+    volumes:
+      - ./src:/app/src
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"

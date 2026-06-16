@@ -1,0 +1,24 @@
+exchanges:
+  binance:
+    name: Binance
+    ws_url: "wss://stream.binance.com:9443"
+    rest_url: "https://api.binance.com"
+    rate_limit_per_minute: 1200
+    supported_markets: [spot, futures]
+    depth_levels: [5, 10, 20]
+
+  coinbase:
+    name: Coinbase Advanced Trade
+    ws_url: "wss://advanced-trade-ws.coinbase.com"
+    rest_url: "https://api.coinbase.com"
+    rate_limit_per_minute: 600
+    supported_markets: [spot]
+    depth_levels: [50]
+
+  kraken:
+    name: Kraken
+    ws_url: "wss://ws.kraken.com"
+    rest_url: "https://api.kraken.com"
+    rate_limit_per_minute: 600
+    supported_markets: [spot]
+    depth_levels: [10, 25, 100, 500]

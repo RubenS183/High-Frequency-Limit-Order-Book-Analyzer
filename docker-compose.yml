@@ -1,0 +1,180 @@
+# ============================================================
+# High-Frequency Limit Order Book Analyzer — Docker Compose
+# ============================================================
+
+version: "3.9"
+
+x-common-env: &common-env
+  APP_ENV: ${APP_ENV:-development}
+  APP_LOG_LEVEL: ${APP_LOG_LEVEL:-DEBUG}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://lob_user:change-me@postgres:5432/lob_analyzer}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+
+services:
+  # ──────────────────────────────
+  # Application Services
+  # ──────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: lob-api
+    environment:
+      <<: *common-env
+    env_file: .env
+    ports:
+      - "8000:8000"
+      - "9090:9090"   # Prometheus metrics
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: lob-ingestion
+    command: ["python", "-m", "lob_analyzer.ingestion.runner"]
+    environment:
+      <<: *common-env
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: lob-dashboard
+    command: ["python", "-m", "lob_analyzer.visualization.dashboard.app"]
+    environment:
+      <<: *common-env
+    env_file: .env
+    ports:
+      - "8050:8050"   # Dash dashboard
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  # ──────────────────────────────
+  # Infrastructure
+  # ──────────────────────────────
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: lob-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lob_analyzer}
+      POSTGRES_USER: ${POSTGRES_USER:-lob_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lob_user} -d ${POSTGRES_DB:-lob_analyzer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: lob-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  # ──────────────────────────────
+  # Observability Stack
+  # ──────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: lob-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: lob-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: lob-otel
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./infrastructure/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    restart: unless-stopped
+    networks:
+      - lob-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  lob-network:
+    driver: bridge

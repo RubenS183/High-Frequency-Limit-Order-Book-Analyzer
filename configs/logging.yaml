@@ -1,0 +1,35 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    format: "%(asctime)s %(name)s %(levelname)s %(message)s"
+  rich:
+    class: rich.logging.RichHandler
+    rich_tracebacks: true
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: rich
+    stream: ext://sys.stdout
+  file:
+    class: logging.handlers.RotatingFileHandler
+    formatter: json
+    filename: logs/lob_analyzer.log
+    maxBytes: 10485760
+    backupCount: 5
+
+root:
+  level: INFO
+  handlers: [console]
+
+loggers:
+  lob_analyzer:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: false
+  sqlalchemy.engine:
+    level: WARNING
+  uvicorn:
+    level: INFO

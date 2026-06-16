@@ -1,0 +1,22 @@
+backtest:
+  name: default
+  description: "Default backtest configuration"
+
+  data:
+    exchange: binance
+    symbol: BTCUSDT
+    start_date: "2024-01-01"
+    end_date: "2024-03-31"
+    data_frequency: tick
+
+  execution:
+    initial_capital: 100000
+    commission_bps: 5
+    slippage_bps: 2
+    latency_us: 50
+    max_position_size: 1.0
+
+  risk:
+    max_drawdown_pct: 10.0
+    position_limit: 1.0
+    stop_loss_bps: 50

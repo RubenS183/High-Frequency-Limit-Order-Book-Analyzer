@@ -1,0 +1,30 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .[dev]
+      - run: |
+          pytest tests/benchmarks/ -m benchmark \
+            --benchmark-autosave \
+            --benchmark-json=benchmark_results.json
+      - uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: pytest
+          output-file-path: benchmark_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: false
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false

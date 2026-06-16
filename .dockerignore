@@ -1,0 +1,47 @@
+# ── Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments
+.venv/
+venv/
+env/
+
+# ── Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+benchmark_results/
+
+# ── Data (large files, mount via volumes)
+data/
+logs/
+
+# ── Dev & IDE files
+.git/
+.gitignore
+.env
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+
+# ── Documentation
+docs/
+notebooks/
+
+# ── CI/CD
+.github/
+
+# ── Docker
+Dockerfile*
+docker-compose*.yml
